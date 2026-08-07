@@ -20,7 +20,7 @@ if not api_key:
     st.stop()
 
 # Inicializar cliente de Gemini
-client = genai.Client(api_key=api_key)
+client = genai.Client(api_key=api_key.strip())
 
 # Crear pestañas para las dos herramientas
 tab1, tab2 = st.tabs(["📝 Lector Express (Resumidor)", "🎙️ Voz a Tarea / Evento"])
@@ -37,21 +37,24 @@ with tab1:
             st.error("Por favor, pega algún texto antes de continuar.")
         else:
             with st.spinner("Analizando contenido..."):
-                prompt = f"""
-                Analiza el siguiente texto y proporciona:
-                1. 📌 **Idea Principal** (en 1 frase impactante).
-                2. 🔑 **3 Puntos Clave** (en viñetas claras).
-                3. 💡 **Conclusión o Acción sugerida**.
+                try:
+                    prompt = f"""
+                    Analiza el siguiente texto y proporciona:
+                    1. 📌 **Idea Principal** (en 1 frase impactante).
+                    2. 🔑 **3 Puntos Clave** (en viñetas claras).
+                    3. 💡 **Conclusión o Acción sugerida**.
 
-                Texto:
-                {texto_entrada}
-                """
-                response = client.models.generate_content(
-                    model='gemini-2.0-flash',
-                    contents=prompt,
-                )
-                st.success("¡Resumen completado!")
-                st.markdown(response.text)
+                    Texto:
+                    {texto_entrada}
+                    """
+                    response = client.models.generate_content(
+                        model='gemini-1.5-flash',
+                        contents=prompt,
+                    )
+                    st.success("¡Resumen completado!")
+                    st.markdown(response.text)
+                except Exception as e:
+                    st.error(f"Error al conectar con Gemini: {e}")
 
 # --- PESTAÑA 2: VOZ A TAREA ---
 with tab2:
@@ -63,26 +66,29 @@ with tab2:
     if audio_val:
         if st.button("✨ Procesar Audio y Crear Tarea"):
             with st.spinner("Escuchando y estructurando la información..."):
-                audio_bytes = audio_val.read()
-                
-                prompt_audio = """
-                Escucha atentamente esta nota de voz y extrae la información en este formato estructurado y visual:
-                
-                📌 **Título de la Tarea/Evento:** [Nombre claro y corto]
-                📅 **Fecha y Hora detectada:** [Si se menciona, si no pon 'No especificada']
-                📝 **Detalles/Descripción:** [Resumen breve de la acción requerida]
-                🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
-                """
-                
-                response_audio = client.models.generate_content(
-                    model='gemini-2.0-flash',
-                    contents=[
-                        prompt_audio,
-                        types.Part.from_bytes(
-                            data=audio_bytes,
-                            mime_type=audio_val.type,
-                        )
-                    ]
-                )
-                st.success("¡Nota procesada correctamente!")
-                st.markdown(response_audio.text)
+                try:
+                    audio_bytes = audio_val.read()
+                    
+                    prompt_audio = """
+                    Escucha atentamente esta nota de voz y extrae la información en este formato estructurado y visual:
+                    
+                    📌 **Título de la Tarea/Evento:** [Nombre claro y corto]
+                    📅 **Fecha y Hora detectada:** [Si se menciona, si no pon 'No especificada']
+                    📝 **Detalles/Descripción:** [Resumen breve de la acción requerida]
+                    🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
+                    """
+                    
+                    response_audio = client.models.generate_content(
+                        model='gemini-1.5-flash',
+                        contents=[
+                            prompt_audio,
+                            types.Part.from_bytes(
+                                data=audio_bytes,
+                                mime_type=audio_val.type,
+                            )
+                        ]
+                    )
+                    st.success("¡Nota procesada correctamente!")
+                    st.markdown(response_audio.text)
+                except Exception as e:
+                    st.error(f"Error al procesar el audio: {e}")
