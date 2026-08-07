@@ -1,6 +1,5 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 # Configuración de la página web
 st.set_page_config(page_title="Asistente de Productividad IA", page_icon="⚡", layout="centered")
@@ -19,8 +18,8 @@ if not api_key:
     st.warning("👈 Por favor, introduce tu API Key de Gemini en la barra lateral para comenzar.")
     st.stop()
 
-# Inicializar cliente de Gemini
-client = genai.Client(api_key=api_key.strip())
+# Configurar cliente con la API Key
+genai.configure(api_key=api_key.strip())
 
 # Crear pestañas para las dos herramientas
 tab1, tab2 = st.tabs(["📝 Lector Express (Resumidor)", "🎙️ Voz a Tarea / Evento"])
@@ -47,10 +46,8 @@ with tab1:
                     Texto:
                     {texto_entrada}
                     """
-                    response = client.models.generate_content(
-                        model='models/gemini-1.5-flash',
-                        contents=prompt,
-                    )
+                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    response = model.generate_content(prompt)
                     st.success("¡Resumen completado!")
                     st.markdown(response.text)
                 except Exception as e:
@@ -78,16 +75,12 @@ with tab2:
                     🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
                     """
                     
-                    response_audio = client.models.generate_content(
-                        model='models/gemini-1.5-flash',
-                        contents=[
-                            prompt_audio,
-                            types.Part.from_bytes(
-                                data=audio_bytes,
-                                mime_type=audio_val.type,
-                            )
-                        ]
-                    )
+                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    audio_data = {
+                        "mime_type": audio_val.type,
+                        "data": audio_bytes
+                    }
+                    response_audio = model.generate_content([prompt_audio, audio_data])
                     st.success("¡Nota procesada correctamente!")
                     st.markdown(response_audio.text)
                 except Exception as e:
