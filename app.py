@@ -12,7 +12,6 @@ st.write("Automatizaciones diarias para ahorrar tiempo y organizar tu día.")
 st.sidebar.header("🔑 Configuración")
 api_key = st.sidebar.text_input("Ingresa tu Gemini API Key:", type="password")
 st.sidebar.markdown("---")
-st.sidebar.info("Esta web procesa tus solicitudes usando IA en tiempo real.")
 
 if not api_key:
     st.warning("👈 Por favor, introduce tu API Key de Gemini en la barra lateral para comenzar.")
@@ -20,6 +19,24 @@ if not api_key:
 
 # Configurar cliente con la API Key
 genai.configure(api_key=api_key.strip())
+
+# Obtener automáticamente los modelos disponibles para TU API Key
+try:
+    modelos_disponibles = [
+        m.name for m in genai.list_models() 
+        if 'generateContent' in m.supported_generation_methods
+    ]
+except Exception as e:
+    st.sidebar.error(f"Error al verificar la API Key: {e}")
+    st.stop()
+
+if not modelos_disponibles:
+    st.sidebar.error("No se encontraron modelos disponibles para esta clave.")
+    st.stop()
+
+# Mostrar la lista de modelos válidos en la barra lateral
+st.sidebar.success("¡API Key conectada con éxito!")
+modelo_seleccionado = st.sidebar.selectbox("Selecciona un modelo activo:", modelos_disponibles, index=0)
 
 # Crear pestañas para las dos herramientas
 tab1, tab2 = st.tabs(["📝 Lector Express (Resumidor)", "🎙️ Voz a Tarea / Evento"])
@@ -46,15 +63,12 @@ with tab1:
                     Texto:
                     {texto_entrada}
                     """
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    model = genai.GenerativeModel(modelo_seleccionado)
                     response = model.generate_content(prompt)
                     st.success("¡Resumen completado!")
                     st.markdown(response.text)
                 except Exception as e:
-                    if "429" in str(e):
-                        st.warning("⏳ Has hecho varias peticiones muy seguidas. Espera 20-30 segundos y vuelve a hacer clic.")
-                    else:
-                        st.error(f"Error al conectar con Gemini: {e}")
+                    st.error(f"Error al generar resumen: {e}")
 
 # --- PESTAÑA 2: VOZ A TAREA ---
 with tab2:
@@ -78,7 +92,7 @@ with tab2:
                     🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
                     """
                     
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    model = genai.GenerativeModel(modelo_seleccionado)
                     audio_data = {
                         "mime_type": audio_val.type,
                         "data": audio_bytes
@@ -87,7 +101,4 @@ with tab2:
                     st.success("¡Nota procesada correctamente!")
                     st.markdown(response_audio.text)
                 except Exception as e:
-                    if "429" in str(e):
-                        st.warning("⏳ Has hecho varias peticiones muy seguidas. Espera 20-30 segundos y vuelve a hacer clic.")
-                    else:
-                        st.error(f"Error al procesar el audio: {e}")
+                    st.error(f"Error al procesar el audio: {e}")
