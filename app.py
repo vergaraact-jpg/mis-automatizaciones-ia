@@ -1,5 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
+import json
+import urllib.parse
+from datetime import datetime
 
 # Configuración de la página web
 st.set_page_config(page_title="Asistente de Productividad IA", page_icon="⚡", layout="centered")
@@ -20,7 +23,7 @@ if not api_key:
 # Configurar cliente con la API Key
 genai.configure(api_key=api_key.strip())
 
-# Obtener automáticamente los modelos disponibles para TU API Key
+# Obtener automáticamente los modelos disponibles para la API Key
 try:
     modelos_disponibles = [
         m.name for m in genai.list_models() 
@@ -34,7 +37,6 @@ if not modelos_disponibles:
     st.sidebar.error("No se encontraron modelos disponibles para esta clave.")
     st.stop()
 
-# Mostrar la lista de modelos válidos en la barra lateral
 st.sidebar.success("¡API Key conectada con éxito!")
 modelo_seleccionado = st.sidebar.selectbox("Selecciona un modelo activo:", modelos_disponibles, index=0)
 
@@ -84,12 +86,13 @@ with tab2:
                     audio_bytes = audio_val.read()
                     
                     prompt_audio = """
-                    Escucha atentamente esta nota de voz y extrae la información en este formato estructurado y visual:
-                    
-                    📌 **Título de la Tarea/Evento:** [Nombre claro y corto]
-                    📅 **Fecha y Hora detectada:** [Si se menciona, si no pon 'No especificada']
-                    📝 **Detalles/Descripción:** [Resumen breve de la acción requerida]
-                    🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
+                    Escucha atentamente esta nota de voz y responde ÚNICAMENTE con un objeto JSON válido con este formato de claves (sin texto adicional ni markdown de código):
+                    {
+                      "titulo": "Título claro y corto de la tarea/evento",
+                      "fecha_hora": "Fecha y hora detectadas o 'No especificada'",
+                      "detalles": "Resumen breve de la acción requerida",
+                      "categoria": "Trabajo / Personal / Recordatorio / Urgente"
+                    }
                     """
                     
                     model = genai.GenerativeModel(modelo_seleccionado)
@@ -98,7 +101,27 @@ with tab2:
                         "data": audio_bytes
                     }
                     response_audio = model.generate_content([prompt_audio, audio_data])
+                    
+                    # Limpiar posible marcado markdown del JSON
+                    raw_text = response_audio.text.strip().replace("```json", "").replace("```", "")
+                    data = json.loads(raw_text)
+                    
                     st.success("¡Nota procesada correctamente!")
-                    st.markdown(response_audio.text)
+                    
+                    # Mostrar la información formateada
+                    st.markdown(f"📌 **Título:** {data.get('titulo')}")
+                    st.markdown(f"📅 **Fecha y Hora detectada:** {data.get('fecha_hora')}")
+                    st.markdown(f"📝 **Detalles:** {data.get('detalles')}")
+                    st.markdown(f"🏷️ **Categoría:** {data.get('categoria')}")
+                    
+                    # Crear enlace a Google Calendar
+                    titulo_enc = urllib.parse.quote(data.get('titulo', 'Nueva Tarea'))
+                    detalles_enc = urllib.parse.quote(f"{data.get('detalles', '')}\n\nCategoría: {data.get('categoria', '')}")
+                    
+                    calendar_url = f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo_enc}&details={detalles_enc}"
+                    
+                    st.markdown("---")
+                    st.link_button("📅 Añadir directamente a Google Calendar", calendar_url, type="primary")
+                    
                 except Exception as e:
                     st.error(f"Error al procesar el audio: {e}")
