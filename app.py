@@ -48,7 +48,7 @@ with tab1:
                     {texto_entrada}
                     """
                     response = client.models.generate_content(
-                        model='gemini-1.5-flash',
+                        model='models/gemini-1.5-flash',
                         contents=prompt,
                     )
                     st.success("¡Resumen completado!")
@@ -79,7 +79,7 @@ with tab2:
                     """
                     
                     response_audio = client.models.generate_content(
-                        model='gemini-1.5-flash',
+                        model='models/gemini-1.5-flash',
                         contents=[
                             prompt_audio,
                             types.Part.from_bytes(
