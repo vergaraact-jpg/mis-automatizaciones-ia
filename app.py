@@ -21,21 +21,6 @@ if not api_key:
 # Configurar cliente con la API Key
 genai.configure(api_key=api_key.strip())
 
-# Seleccionar dinámicamente el modelo activo en tu cuenta
-@st.cache_data(ttl=60)
-def obtener_modelo_valido():
-    try:
-        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Buscar preferentemente versiones flash activas (2.0 o 1.5)
-        for m in modelos:
-            if 'gemini-2.0-flash' in m or 'gemini-1.5-flash' in m:
-                return m
-        return modelos[0] if modelos else "models/gemini-2.0-flash"
-    except Exception:
-        return "models/gemini-2.0-flash"
-
-modelo_activo = obtener_modelo_valido()
-
 # Crear pestañas para las dos herramientas
 tab1, tab2 = st.tabs(["📝 Lector Express (Resumidor)", "🎙️ Voz a Tarea / Evento"])
 
@@ -61,12 +46,15 @@ with tab1:
                     Texto:
                     {texto_entrada}
                     """
-                    model = genai.GenerativeModel(modelo_activo)
+                    model = genai.GenerativeModel("gemini-1.5-flash")
                     response = model.generate_content(prompt)
                     st.success("¡Resumen completado!")
                     st.markdown(response.text)
                 except Exception as e:
-                    st.error(f"Error al conectar con Gemini: {e}")
+                    if "429" in str(e):
+                        st.warning("⏳ Has hecho varias peticiones muy seguidas. Espera 20-30 segundos y vuelve a hacer clic.")
+                    else:
+                        st.error(f"Error al conectar con Gemini: {e}")
 
 # --- PESTAÑA 2: VOZ A TAREA ---
 with tab2:
@@ -90,7 +78,7 @@ with tab2:
                     🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
                     """
                     
-                    model = genai.GenerativeModel(modelo_activo)
+                    model = genai.GenerativeModel("gemini-1.5-flash")
                     audio_data = {
                         "mime_type": audio_val.type,
                         "data": audio_bytes
@@ -99,4 +87,7 @@ with tab2:
                     st.success("¡Nota procesada correctamente!")
                     st.markdown(response_audio.text)
                 except Exception as e:
-                    st.error(f"Error al procesar el audio: {e}")
+                    if "429" in str(e):
+                        st.warning("⏳ Has hecho varias peticiones muy seguidas. Espera 20-30 segundos y vuelve a hacer clic.")
+                    else:
+                        st.error(f"Error al procesar el audio: {e}")
