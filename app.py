@@ -21,30 +21,20 @@ if not api_key:
 # Configurar cliente con la API Key
 genai.configure(api_key=api_key.strip())
 
-# Función para obtener automáticamente el mejor modelo disponible para esta API Key
-@st.cache_resource
-def obtener_modelo_activo(_api_key):
+# Seleccionar dinámicamente el modelo activo en tu cuenta
+@st.cache_data(ttl=60)
+def obtener_modelo_valido():
     try:
-        modelos = genai.list_models()
-        modelos_disponibles = [
-            m.name for m in modelos 
-            if 'generateContent' in m.supported_generation_methods
-        ]
-        
-        # Buscar el mejor modelo flash disponible
-        for m in modelos_disponibles:
-            if 'flash' in m:
+        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Buscar preferentemente versiones flash activas (2.0 o 1.5)
+        for m in modelos:
+            if 'gemini-2.0-flash' in m or 'gemini-1.5-flash' in m:
                 return m
-        
-        # Si no hay flash, devolver el primero que soporte generación de contenido
-        if modelos_disponibles:
-            return modelos_disponibles[0]
-            
-        return "gemini-pro"
+        return modelos[0] if modelos else "models/gemini-2.0-flash"
     except Exception:
-        return "gemini-1.5-flash"
+        return "models/gemini-2.0-flash"
 
-modelo_elegido = obtener_modelo_activo(api_key.strip())
+modelo_activo = obtener_modelo_valido()
 
 # Crear pestañas para las dos herramientas
 tab1, tab2 = st.tabs(["📝 Lector Express (Resumidor)", "🎙️ Voz a Tarea / Evento"])
@@ -71,7 +61,7 @@ with tab1:
                     Texto:
                     {texto_entrada}
                     """
-                    model = genai.GenerativeModel(modelo_elegido)
+                    model = genai.GenerativeModel(modelo_activo)
                     response = model.generate_content(prompt)
                     st.success("¡Resumen completado!")
                     st.markdown(response.text)
@@ -100,7 +90,7 @@ with tab2:
                     🏷️ **Categoría sugerida:** [Trabajo / Personal / Recordatorio / Urgente]
                     """
                     
-                    model = genai.GenerativeModel(modelo_elegido)
+                    model = genai.GenerativeModel(modelo_activo)
                     audio_data = {
                         "mime_type": audio_val.type,
                         "data": audio_bytes
